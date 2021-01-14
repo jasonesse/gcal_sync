@@ -127,3 +127,9 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+credentials.json
+todo.txt
+appconfig.py
+.vscode
+token.pickle
