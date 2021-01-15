@@ -8,12 +8,14 @@ from googleapiclient.discovery import build
 from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
 import base64
-#from appconfig import EMAIL_TO, EMAIL_FROM
+
+# from appconfig import EMAIL_TO, EMAIL_FROM
 
 # If modifying these scopes, delete the file token.pickle.
 SCOPES = ["https://mail.google.com/"]
-EMAIL_FROM='jason.essebag@gmail.com'
-EMAIL_TO='makip.ryden@gmail.com'
+EMAIL_FROM = "jason.essebag@gmail.com"
+EMAIL_TO = "makip.ryden@gmail.com"
+
 
 def auth():
     """Shows basic usage of the Gmail API.
@@ -90,11 +92,14 @@ def create_message(sender, to, subject, message_text):
     # raw = raw.decode()
     return {"raw": raw}
 
+
 def notify(message):
-    msg = create_message(EMAIL_FROM, EMAIL_TO, "Google Calendar API - Data error", message)
+    msg = create_message(
+        EMAIL_FROM, EMAIL_TO, "Google Calendar API - Data error", message
+    )
     service = auth()
     send_message(service=service, user_id="me", message=msg)
 
-if __name__ == "__main__":
-    notify('test')
 
+if __name__ == "__main__":
+    notify("test")

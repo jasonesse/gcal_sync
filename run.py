@@ -14,25 +14,35 @@ from send_email.send_gmail import notify
 SCOPES = ["https://www.googleapis.com/auth/calendar"]
 
 class FileSpec:
-    def __init__(self, customer, start_date, end_date, description, number):
+    def __init__(self, customer, start_datetime_str, end_datetime_str, description, number):
         self.customer = customer
-        self.start_date = start_date
-        self.end_date = end_date
+        self.start_datetime_str = start_datetime_str
+        self.end_datetime_str = end_datetime_str
         self.description = description
         self.number = number
         self.colorId = "5"  # default color
 
-    def get_start_date_str(self) -> str:
-        return self.get_date_str(dt=self.start_date)
 
-    def get_start_time_str(self) -> str:
-        return self.get_time_str(dt=self.start_date)
+    @property
+    def id(self):
+        return self.number.lower()
 
-    def get_end_date_str(self) -> str:
-        return self.get_date_str(dt=self.end_date)
+    @property
+    def start_date_str(self):
+        return self.get_date_str(dt=self.start_datetime_str)
 
-    def get_end_time_str(self) -> str:
-        return self.get_time_str(dt=self.end_date)
+    @property
+    def end_date_str(self):
+        return self.get_date_str(dt=self.end_datetime_str)
+
+    @property
+    def start_time_str(self):
+        return self.get_time_str(dt=self.start_datetime_str)
+
+    @property
+    def end_time_str(self):
+        return self.get_time_str(dt=self.end_datetime_str)
+
 
     def get_date_str(self, dt) -> str:
         res = ''
@@ -51,11 +61,8 @@ class FileSpec:
         return res
 
 
-    def get_id(self):
-        return self.number.lower()
-
     def __str__(self):
-        return f"Customer:{self.customer},Number:{self.number},StartDate:{self.start_date},EndDate:{self.end_date}"
+        return f"Customer:{self.customer},Number:{self.number},StartDate:{self.start_datetime_str},EndDate:{self.end_datetime_str}"
 
 def get_google_api_service():
     """Shows basic usage of the Google Calendar API.
@@ -79,10 +86,9 @@ def get_google_api_service():
         with open("token.pickle", "wb") as token:
             pickle.dump(creds, token)
 
-    service = build("calendar", "v3", credentials=creds, cache_discovery=False)
+    return build("calendar", "v3", credentials=creds, cache_discovery=False)
 
-    return service
-
+#TODO timemin
 def get_google_cal_events(maxResults=100, timeMin=datetime.datetime.utcnow().isoformat() + "Z"):# 'Z' indicates UTC time
     service = get_google_api_service()
 
@@ -97,12 +103,12 @@ def get_google_cal_events(maxResults=100, timeMin=datetime.datetime.utcnow().iso
         )
         .execute()
     )
-    events = events_result.get("items", [])
-    return events
+    return events_result.get("items", [])
 
 def get_new_events():
-    new_events = []
 
+    new_events = []
+    #TODO path
     with open("change_request.csv", "r", encoding="UTF-8") as f:
         reader = csv.reader(f, delimiter=",", quotechar='"')
 
@@ -110,8 +116,8 @@ def get_new_events():
             if id > 0:
                 file_event = FileSpec(
                     customer=row[0],
-                    start_date=row[1],
-                    end_date=row[2],
+                    start_datetime_str=row[1],
+                    end_datetime_str=row[2],
                     description=row[3],
                     number=row[4],
                 )
@@ -120,10 +126,13 @@ def get_new_events():
     return new_events
 
 def get_min_start_date(new_events):
-    start_dates = []
-    for s in new_events:
-        if s.start_date != '':
-            start_dates.append(datetime.datetime.strptime(s.start_date, DATE_FORMAT))
+    
+    start_dates = [
+        datetime.datetime.strptime(s.start_datetime_str, DATE_FORMAT)
+        for s in new_events
+        if s.start_date_str != ''
+    ]
+
     try:
         min_start_date = min(start_dates)
     except:
@@ -136,9 +145,7 @@ def calc_missing_date_str(dt_str: str, hours: int, fmt=DATE_FORMAT) -> str:
         dt + datetime.timedelta(hours=hours), DATE_FORMAT
     )
 
-def upsert_events(new_events):
-
-    service = get_google_api_service()
+def get_gcalids_to_delete(new_events):
 
     min_start_date = get_min_start_date(new_events)
     google_cal_events = get_google_cal_events(timeMin=min_start_date)
@@ -157,63 +164,65 @@ def upsert_events(new_events):
             if e.number == gcal_id:
                 ids_to_delete.update({e.number: gcal_event.get("id")})
 
+    return ids_to_delete, gcal_ids, gcal_dict_id, new_event_ids
+
+
+def get_event_body(event):
+    return {
+            #"summary": f"{s.customer} ({s.number})",
+            "summary": event.customer,
+            "location": event.number,
+            "description": event.description,
+            "start": {
+                "dateTime": f"{event.start_date_str}T{event.start_time_str}:00",
+                "timeZone": "America/New_York",
+            },
+            "end": {
+                "dateTime": f"{event.end_date_str}T{event.end_time_str}:00",
+                "timeZone": "America/New_York",
+            },
+            "colorId": event.colorId,
+            }
+
+
+#TODO refactor.
+def upsert_events(new_events):
+
+    service = get_google_api_service()
+
+    ids_to_delete, gcal_ids, gcal_dict_id, new_event_ids = get_gcalids_to_delete(new_events)
+
     #create new events
     for s in new_events:
-        
         #if event already exists, delete it to refresh it's data.
         id_to_delete = ids_to_delete.get(s.number,0)
         if id_to_delete != 0:
             service.events().delete(calendarId=GOOGLE_CALENDAR_ID, eventId=id_to_delete).execute()
             logging.info(f"{id} deleted")
-
-        if s.get_start_date_str() != "" and s.get_end_date_str() != "":
-            pass
-        elif s.get_start_date_str() == "" and s.get_end_date_str() == "":
-            #raise ValueError("Both start and end dates are empty.")
-            logging.error("Both start and end dates are empty.")
+        
+        if s.start_datetime_str == ""  and s.end_datetime_str == "":
+            logging.error(f"{s.number} : Both start and end dates are empty.")
             #notify(f"Both start and end dates are empty") #broken.
-
-            continue
         else:
-            if s.start_date == "":
-                s.start_date = calc_missing_date_str(dt_str=s.end_date, hours=-1)
+            if s.start_datetime_str == "":
+                s.start_datetime_str = calc_missing_date_str(dt_str=s.end_datetime_str, hours=-1)
                 s.colorId = "6"
                 s.description = "**start date missing**\n" + s.description
 
-            if s.end_date == "":
-                s.end_date = calc_missing_date_str(dt_str=s.start_date, hours=1)
+            if s.end_datetime_str == "":
+                s.end_datetime_str = calc_missing_date_str(dt_str=s.start_datetime_str, hours=1)
                 s.colorId = "6"
                 s.description = "**end date missing**\n" + s.description
 
         try:
-            event = {
-                #"summary": f"{s.customer} ({s.number})",
-                "summary": s.customer,
-                "location": s.number,
-                "description": s.description,
-                "start": {
-                    "dateTime": f"{s.get_start_date_str()}T{s.get_start_time_str()}:00",
-                    "timeZone": "America/New_York",
-                },
-                "end": {
-                    "dateTime": f"{s.get_end_date_str()}T{s.get_end_time_str()}:00",
-                    "timeZone": "America/New_York",
-                },
-                "colorId": s.colorId,
-            }
 
-            # if exists delete first
+            service.events().insert(calendarId=GOOGLE_CALENDAR_ID, body=get_event_body(s)).execute()
 
-            event = (
-                service.events()
-                .insert(calendarId=GOOGLE_CALENDAR_ID, body=event)
-                .execute()
-            )
         except Exception as e:
             logging.error(f"Event details: {s}. Import failed: {e}.")
             continue
 
-        print(f"{s.get_id()} created")
+        print(f"{s.id} created")
 
         #update missing file events to red.
     gcal_nin_file = list(set(gcal_ids) - set(new_event_ids))
@@ -222,6 +231,7 @@ def upsert_events(new_events):
         eventId = gcal_dict_id.get(event_nin_file)
         event = service.events().get(calendarId=GOOGLE_CALENDAR_ID, eventId=eventId).execute()
         event['colorId'] = '11' # red
+        event['description'] = f"**event not in source file**\n {event['description']}"
         service.events().update(calendarId=GOOGLE_CALENDAR_ID, eventId=event['id'], body=event).execute()
 
 
