@@ -107,10 +107,21 @@ def get_google_cal_events(
     )
     return events_result.get("items", [])
 
+def validate_file_events(file_events):
+    
+    valid_file_events = []
 
-def read_new_events():
+    for s in file_events:
+        if s.start_datetime_str == "" and s.end_datetime_str == "":
+            logging.error(f"{s.number} : Both start and end dates are empty.")
+        else:
+            valid_file_events.append(s)
 
-    new_events = []
+    return valid_file_events
+
+def read_file_events():
+
+    file_events = []
 
     with open(FILEPATH, "r", encoding="UTF-8") as f:
         reader = csv.reader(f, delimiter=",", quotechar='"')
@@ -124,16 +135,16 @@ def read_new_events():
                     description=row[3],
                     number=row[4],
                 )
-                new_events.append(file_event)
+                file_events.append(file_event)
 
-    return new_events
+    return validate_file_events(file_events)
 
 
-def get_min_start_date(new_events):
+def get_min_start_date(file_events):
 
     start_dates = [
         datetime.datetime.strptime(s.start_datetime_str, DATE_FORMAT)
-        for s in new_events
+        for s in file_events
         if s.start_date_str != ""
     ]
 
@@ -149,32 +160,44 @@ def calc_missing_date_str(dt_str: str, hours: int, fmt=DATE_FORMAT) -> str:
     return datetime.datetime.strftime(dt + datetime.timedelta(hours=hours), DATE_FORMAT)
 
 
-def get_gcalids_to_delete(new_events):
+def get_gcalids_to_update(file_events):
 
-    min_start_date = get_min_start_date(new_events)
+    file_ids = []
+
+    min_start_date = get_min_start_date(file_events)
     google_cal_events = get_google_cal_events(timeMin=min_start_date)
-    ids_to_delete = {}
+    ids_to_update = []
+    gcal_nin_file = []
+    ids_to_create = []
+
+    for e in file_events:
+        file_ids.append(e.id)
+
+    if len(google_cal_events) == 0: # brand new calendar
+        ids_to_create = file_ids
+        return ids_to_update, ids_to_create, gcal_nin_file
 
     # delete all google cal events found in file to refresh
     gcal_ids = []
-    gcal_dict_id = {}  # holds actual id for updating.
-    new_event_ids = []
     for gcal_event in google_cal_events:
-        gcal_id = gcal_event.get("location")
+        gcal_id = gcal_event.get("id")
+        #gcal_id = gcal_event.get("location")
         gcal_ids.append(gcal_id)
-        gcal_dict_id.update({gcal_id: gcal_event.get("id")})
-        for e in new_events:
-            new_event_ids.append(e.number)
-            if e.number == gcal_id:
-                ids_to_delete.update({e.number: gcal_event.get("id")})
+        #gcal_dict_id.update({gcal_id: gcal_event.get("id")})
+        for e in file_events:
+            file_ids.append(e.id)
+            if e.id == gcal_id:
+                ids_to_update.append(e.id)
 
-    gcal_nin_file = list(set(gcal_ids) - set(new_event_ids))
+    gcal_nin_file = list(set(gcal_ids) - set(file_ids))
+    ids_to_create = list(set(file_ids) - set(ids_to_update))
 
-    return ids_to_delete, gcal_nin_file, gcal_dict_id
+    return ids_to_update, ids_to_create, gcal_nin_file#, gcal_dict_id
 
 
 def get_event_body(event):
     return {
+        'id': event.id,
         # "summary": f"{s.customer} ({s.number})",
         "summary": event.customer,
         "location": event.number,
@@ -191,69 +214,80 @@ def get_event_body(event):
     }
 
 
-def upsert_events(new_events):
+def handle_missing_dates(s):
+    if s.start_datetime_str == "":
+        s.start_datetime_str = calc_missing_date_str(
+            dt_str=s.end_datetime_str, hours=-1
+        )
+        s.colorId = "6"
+        s.description = "**start date missing**\n" + s.description
 
-    service = get_google_api_service()
+    if s.end_datetime_str == "":
+        s.end_datetime_str = calc_missing_date_str(
+            dt_str=s.start_datetime_str, hours=1
+        )
+        s.colorId = "6"
+        s.description = "**end date missing**\n" + s.description
+    return s
 
-    ids_to_delete, gcal_nin_file, gcal_dict_id = get_gcalids_to_delete(new_events)
 
-    # create new events
-    for s in new_events:
-        # if event already exists, delete it to refresh it's data.
-        id_to_delete = ids_to_delete.get(s.number, 0)
-        if id_to_delete != 0:
-            service.events().delete(
-                calendarId=GOOGLE_CALENDAR_ID, eventId=id_to_delete
-            ).execute()
-            logging.info(f"{id} deleted")
-
-        if s.start_datetime_str == "" and s.end_datetime_str == "":
-            logging.error(f"{s.number} : Both start and end dates are empty.")
-            # notify(f"Both start and end dates are empty") #broken.
-        else:
-            if s.start_datetime_str == "":
-                s.start_datetime_str = calc_missing_date_str(
-                    dt_str=s.end_datetime_str, hours=-1
-                )
-                s.colorId = "6"
-                s.description = "**start date missing**\n" + s.description
-
-            if s.end_datetime_str == "":
-                s.end_datetime_str = calc_missing_date_str(
-                    dt_str=s.start_datetime_str, hours=1
-                )
-                s.colorId = "6"
-                s.description = "**end date missing**\n" + s.description
-
+def insert_event(s, service):
+ 
         try:
-
             service.events().insert(
                 calendarId=GOOGLE_CALENDAR_ID, body=get_event_body(s)
             ).execute()
 
         except Exception as e:
             logging.error(f"Event details: {s}. Import failed: {e}.")
-            continue
 
         logging.debug(f"{s.id} created")
 
-    # update missing file events to red.
-    for event_nin_file in gcal_nin_file:
-        eventId = gcal_dict_id.get(event_nin_file)
-        event = (
-            service.events()
-            .get(calendarId=GOOGLE_CALENDAR_ID, eventId=eventId)
-            .execute()
-        )
-        event["colorId"] = "11"  # red
-        event["description"] = f"**event not in source file**\n {event['description']}"
-        service.events().update(
-            calendarId=GOOGLE_CALENDAR_ID, eventId=event["id"], body=event
-        ).execute()
+def update_event(s, service):
+
+ 
+    event = get_event_body(s)
+    service.events().update(
+        calendarId=GOOGLE_CALENDAR_ID, eventId=s.id, body=event
+    ).execute()
+    logging.debug(f'{s.id} event updated')  
+
+def flag_event(id, service):
+
+    event = (
+        service.events()
+        .get(calendarId=GOOGLE_CALENDAR_ID, eventId=id)
+        .execute()
+    )
+    event["colorId"] = "11"  # red
+    event["description"] = f"**event not in source file**\n {event['description']}"
+    service.events().update(
+        calendarId=GOOGLE_CALENDAR_ID, eventId=event["id"], body=event
+    ).execute()
+
+def upsert_events(file_events):
+
+    service = get_google_api_service()
+
+    #ids_to_update, gcal_nin_file, gcal_dict_id = get_gcalids_to_update(file_events)
+    ids_to_update, ids_to_create, gcal_nin_file = get_gcalids_to_update(file_events)
+    
+    
+
+    for event in file_events:
+        event = handle_missing_dates(event)
+
+        if event.id in ids_to_update:
+            update_event(event, service)
+        if event.id in ids_to_create:
+            insert_event(event, service)
+    
+    for gcal_id in gcal_nin_file:
+        flag_event(gcal_id, service)
 
 
 def synch_event():
-    upsert_events(read_new_events())
+    upsert_events(read_file_events())
 
 # def get_colors():
 #     service = get_google_api_service()
@@ -267,6 +301,6 @@ def synch_event():
 
 if __name__ == "__main__":
     # get_colors()
-    upsert_events(read_new_events())
+    upsert_events(read_file_events())
 
 
