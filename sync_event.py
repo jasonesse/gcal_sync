@@ -71,13 +71,24 @@ def read_file_events():
         reader = csv.reader(f, delimiter=",", quotechar='"')
 
         for id, row in enumerate(reader):
+            if id == 0:
+                #get header indices.
+                try:
+                    customer = row.index('u_customer_concerned')
+                    start_datetime_str= row.index('start_date')
+                    end_datetime_str= row.index('end_date')
+                    description= row.index('short_description')
+                    number= row.index('number')
+                except ValueError as e:
+                    raise ValueError(f'Column name not found in {FILEPATH}: {e}')
+
             if id > 0:
                 file_event = FileSpec(
-                    customer=row[0],
-                    start_datetime_str=row[1],
-                    end_datetime_str=row[2],
-                    description=row[3],
-                    number=row[4],
+                    customer=row[customer],
+                    start_datetime_str=row[start_datetime_str],
+                    end_datetime_str=row[end_datetime_str],
+                    description=row[description],
+                    number=row[number],
                 )
                 file_events.append(file_event)
 
