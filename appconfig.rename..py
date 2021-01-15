@@ -5,3 +5,11 @@ GOOGLE_CALENDAR_ID = "YOURCALENDARID@group.calendar.google.com"
 DATE_FORMAT = "%Y-%m-%d %H:%M:%S"
 EMAIL_FROM = "FROM"
 EMAIL_TO = "TO"
+
+COLUMN_MAPPING = {
+    "summary": "u_customer_concerned",
+    "start_datetime_str": "start_date",
+    "end_datetime_str": "end_date",
+    "description": "short_description",
+    "gid": "number",
+}

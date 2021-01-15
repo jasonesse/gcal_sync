@@ -4,7 +4,7 @@ import os.path
 from googleapiclient.discovery import build
 from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
-from appconfig import FILEPATH, GOOGLE_CALENDAR_ID, DATE_FORMAT
+from appconfig import FILEPATH, GOOGLE_CALENDAR_ID, DATE_FORMAT, COLUMN_MAPPING
 import csv
 import logging
 
@@ -13,19 +13,17 @@ SCOPES = ["https://www.googleapis.com/auth/calendar"]
 
 
 class FileSpec:
-    def __init__(
-        self, customer, start_datetime_str, end_datetime_str, description, number
-    ):
-        self.customer = customer
+    def __init__(self, summary, start_datetime_str, end_datetime_str, description, gid):
+        self.summary = summary
         self.start_datetime_str = start_datetime_str
         self.end_datetime_str = end_datetime_str
         self.description = description
-        self.number = number
+        self.gid = gid
         self.colorId = "5"  # default color
 
     @property
     def id(self):
-        return self.number.lower()
+        return self.gid.lower()
 
     @property
     def start_date_str(self):
@@ -60,10 +58,10 @@ class FileSpec:
         return res
 
     def __str__(self):
-        return f"Customer:{self.customer},Number:{self.number},StartDate:{self.start_datetime_str},EndDate:{self.end_datetime_str}"
+        return f"summary:{self.summary},gid:{self.gid},StartDate:{self.start_datetime_str},EndDate:{self.end_datetime_str}"
 
 
-def read_file_events():
+def read_file_events(column_mapping=COLUMN_MAPPING):
 
     file_events = []
 
@@ -72,23 +70,27 @@ def read_file_events():
 
         for id, row in enumerate(reader):
             if id == 0:
-                #get header indices.
+                # get header indices.
                 try:
-                    customer = row.index('u_customer_concerned')
-                    start_datetime_str= row.index('start_date')
-                    end_datetime_str= row.index('end_date')
-                    description= row.index('short_description')
-                    number= row.index('number')
+                    summary = row.index(column_mapping.get("summary"))
+                    start_datetime_str = row.index(
+                        column_mapping.get("start_datetime_str")
+                    )
+                    end_datetime_str = row.index(column_mapping.get("end_datetime_str"))
+                    description = row.index(column_mapping.get("description"))
+                    gid = row.index(column_mapping.get("gid"))
                 except ValueError as e:
-                    raise ValueError(f'Column name not found in {FILEPATH}: {e}')
+                    raise ValueError(
+                        f"Check COLUMN_MAPPING in appconfig.py. Column name not found in {FILEPATH}: {e}"
+                    )
 
             if id > 0:
                 file_event = FileSpec(
-                    customer=row[customer],
+                    summary=row[summary],
                     start_datetime_str=row[start_datetime_str],
                     end_datetime_str=row[end_datetime_str],
                     description=row[description],
-                    number=row[number],
+                    gid=row[gid],
                 )
                 file_events.append(file_event)
 
@@ -101,9 +103,9 @@ def validate_file_events(file_events):
 
     for s in file_events:
         if s.start_datetime_str == "" and s.end_datetime_str == "":
-            logging.error(f"{s.number} : Both start and end dates are empty.")
-        elif s.number == "":
-            logging.error(f"No number found for event. Check source file.")
+            logging.error(f"{s.gid} : Both start and end dates are empty.")
+        elif s.gid == "":
+            logging.error(f"No gid found for event. Check source file.")
 
         else:
             valid_file_events.append(s)
@@ -193,9 +195,9 @@ def calc_google_merge(file_events):
 def get_event_body(event):
     return {
         "id": event.id,
-        # "summary": f"{s.customer} ({s.number})",
-        "summary": event.customer,
-        "location": event.number,
+        # "summary": f"{s.summary} ({s.gid})",
+        "summary": event.summary,
+        "location": event.gid,
         "description": event.description,
         "start": {
             "dateTime": f"{event.start_date_str}T{event.start_time_str}:00",
@@ -211,19 +213,22 @@ def get_event_body(event):
 
 def process_events(file_events):
 
-    service = authenticate_google()
-    ids_to_update, ids_to_create, gcal_nin_file = calc_google_merge(file_events)
+    if len(file_events) > 0:
+        service = authenticate_google()
+        ids_to_update, ids_to_create, gcal_nin_file = calc_google_merge(file_events)
 
-    for event in file_events:
-        event = handle_missing_dates(event)
+        for event in file_events:
+            event = handle_missing_dates(event)
 
-        if event.id in ids_to_update:
-            update_event(event, service)
-        if event.id in ids_to_create:
-            insert_event(event, service)
+            if event.id in ids_to_update:
+                update_event(event, service)
+            if event.id in ids_to_create:
+                insert_event(event, service)
 
-    for gcal_id in gcal_nin_file:
-        flag_event(gcal_id, service)
+        for gcal_id in gcal_nin_file:
+            flag_event(gcal_id, service)
+    else:
+        logging.error("No work done, file is empty.")
 
 
 def insert_event(s, service):
