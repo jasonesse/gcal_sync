@@ -178,18 +178,15 @@ def calc_google_merge(file_events):
     gcal_ids = []
     for gcal_event in google_cal_events:
         gcal_id = gcal_event.get("id")
-        # gcal_id = gcal_event.get("location")
         gcal_ids.append(gcal_id)
-        # gcal_dict_id.update({gcal_id: gcal_event.get("id")})
-        for e in file_events:
-            file_ids.append(e.id)
-            if e.id == gcal_id:
-                ids_to_update.append(e.id)
+        for e in file_ids:
+            if e == gcal_id:
+                ids_to_update.append(e)
 
     gcal_nin_file = list(set(gcal_ids) - set(file_ids))
     ids_to_create = list(set(file_ids) - set(ids_to_update))
 
-    return ids_to_update, ids_to_create, gcal_nin_file  # , gcal_dict_id
+    return ids_to_update, ids_to_create, gcal_nin_file
 
 
 def get_event_body(event):
