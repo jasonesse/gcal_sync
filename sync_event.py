@@ -7,7 +7,6 @@ from google.auth.transport.requests import Request
 from appconfig import FILEPATH, GOOGLE_CALENDAR_ID, DATE_FORMAT
 import csv
 import logging
-from send_email.send_gmail import notify
 
 # If modifying these scopes, delete the file token.pickle.
 SCOPES = ["https://www.googleapis.com/auth/calendar"]
