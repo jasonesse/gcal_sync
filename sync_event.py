@@ -62,6 +62,7 @@ class FileSpec:
     def __str__(self):
         return f"Customer:{self.customer},Number:{self.number},StartDate:{self.start_datetime_str},EndDate:{self.end_datetime_str}"
 
+
 def read_file_events():
 
     file_events = []
@@ -81,6 +82,8 @@ def read_file_events():
                 file_events.append(file_event)
 
     return validate_file_events(file_events)
+
+
 def validate_file_events(file_events):
 
     valid_file_events = []
@@ -95,6 +98,7 @@ def validate_file_events(file_events):
             valid_file_events.append(s)
 
     return valid_file_events
+
 
 def authenticate_google():
     """Shows basic usage of the Google Calendar API.
@@ -119,7 +123,11 @@ def authenticate_google():
             pickle.dump(creds, token)
 
     return build("calendar", "v3", credentials=creds, cache_discovery=False)
-def get_google_cal_events(maxResults=100, timeMin=datetime.datetime.utcnow().isoformat() + "Z"):
+
+
+def get_google_cal_events(
+    maxResults=100, timeMin=datetime.datetime.utcnow().isoformat() + "Z"
+):
     service = authenticate_google()
 
     events_result = (
@@ -134,6 +142,8 @@ def get_google_cal_events(maxResults=100, timeMin=datetime.datetime.utcnow().iso
         .execute()
     )
     return events_result.get("items", [])
+
+
 def calc_google_merge(file_events):
 
     file_ids = []
@@ -167,6 +177,8 @@ def calc_google_merge(file_events):
     ids_to_create = list(set(file_ids) - set(ids_to_update))
 
     return ids_to_update, ids_to_create, gcal_nin_file  # , gcal_dict_id
+
+
 def get_event_body(event):
     return {
         "id": event.id,
@@ -185,6 +197,7 @@ def get_event_body(event):
         "colorId": event.colorId,
     }
 
+
 def process_events(file_events):
 
     service = authenticate_google()
@@ -200,6 +213,8 @@ def process_events(file_events):
 
     for gcal_id in gcal_nin_file:
         flag_event(gcal_id, service)
+
+
 def insert_event(s, service):
 
     try:
@@ -211,6 +226,8 @@ def insert_event(s, service):
         logging.error(f"Event details: {s}. Import failed: {e}.")
 
     logging.debug(f"{s.id} created")
+
+
 def update_event(s, service):
 
     event = get_event_body(s)
@@ -218,6 +235,8 @@ def update_event(s, service):
         calendarId=GOOGLE_CALENDAR_ID, eventId=s.id, body=event
     ).execute()
     logging.debug(f"{s.id} event updated")
+
+
 def flag_event(id, service):
 
     event = service.events().get(calendarId=GOOGLE_CALENDAR_ID, eventId=id).execute()
@@ -226,6 +245,7 @@ def flag_event(id, service):
     service.events().update(
         calendarId=GOOGLE_CALENDAR_ID, eventId=event["id"], body=event
     ).execute()
+
 
 def get_min_start_date(file_events):
 
@@ -240,9 +260,13 @@ def get_min_start_date(file_events):
     except:
         min_start_date = datetime.datetime.now()
     return min_start_date
+
+
 def calc_missing_date_str(dt_str: str, hours: int, fmt=DATE_FORMAT) -> str:
     dt = datetime.datetime.strptime(dt_str, fmt)
     return datetime.datetime.strftime(dt + datetime.timedelta(hours=hours), DATE_FORMAT)
+
+
 def handle_missing_dates(s):
     if s.start_datetime_str == "":
         s.start_datetime_str = calc_missing_date_str(
@@ -256,6 +280,7 @@ def handle_missing_dates(s):
         s.colorId = "6"
         s.description = "**end date missing**\n" + s.description
     return s
+
 
 def synch_event():
     process_events(read_file_events())
