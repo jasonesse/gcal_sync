@@ -8,12 +8,12 @@ from googleapiclient.discovery import build
 from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
 import base64
-from appconfig import EMAIL_TO,EMAIL_FROM
+#from appconfig import EMAIL_TO, EMAIL_FROM
 
 # If modifying these scopes, delete the file token.pickle.
-SCOPES = ['https://mail.google.com/']
-
-
+SCOPES = ["https://mail.google.com/"]
+EMAIL_FROM='jason.essebag@gmail.com'
+EMAIL_TO='makip.ryden@gmail.com'
 
 def auth():
     """Shows basic usage of the Gmail API.
@@ -23,22 +23,21 @@ def auth():
     # The file token.pickle stores the user's access and refresh tokens, and is
     # created automatically when the authorization flow completes for the first
     # time.
-    if os.path.exists('token.pickle'):
-        with open('token.pickle', 'rb') as token:
+    if os.path.exists("token.pickle"):
+        with open("token.pickle", "rb") as token:
             creds = pickle.load(token)
     # If there are no (valid) credentials available, let the user log in.
     if not creds or not creds.valid:
         if creds and creds.expired and creds.refresh_token:
             creds.refresh(Request())
         else:
-            flow = InstalledAppFlow.from_client_secrets_file(
-                'credentials.json', SCOPES)
+            flow = InstalledAppFlow.from_client_secrets_file("credentials.json", SCOPES)
             creds = flow.run_local_server(port=0)
         # Save the credentials for the next run
-        with open('token.pickle', 'wb') as token:
+        with open("token.pickle", "wb") as token:
             pickle.dump(creds, token)
 
-    service = build('gmail', 'v1', credentials=creds)
+    service = build("gmail", "v1", credentials=creds, cache_discovery=False)
 
     return service
 
@@ -53,6 +52,7 @@ def auth():
     #     for label in labels:
     #         print(label['name'])
 
+
 def send_message(service, user_id, message):
     """Send an email message.
 
@@ -65,11 +65,11 @@ def send_message(service, user_id, message):
     Returns:
     Sent Message.
     """
-    #try:
-    message = (service.users().messages().send(userId=user_id, body=message).execute())
+    # try:
+    message = service.users().messages().send(userId=user_id, body=message).execute()
     return message
 
- 
+
 def create_message(sender, to, subject, message_text):
     """Create a message for an email.
 
@@ -83,15 +83,18 @@ def create_message(sender, to, subject, message_text):
     An object containing a base64url encoded email object.
     """
     message = MIMEText(message_text)
-    message['to'] = to
-    message['from'] = sender
-    message['subject'] = subject
+    message["to"] = to
+    message["from"] = sender
+    message["subject"] = subject
     raw = base64.urlsafe_b64encode(message.as_bytes()).decode()
-    #raw = raw.decode()
-    return {'raw': raw}
+    # raw = raw.decode()
+    return {"raw": raw}
 
-
-if __name__ == '__main__':
-    msg = create_message(EMAIL_FROM,EMAIL_TO, 'subject', 'message')
+def notify(message):
+    msg = create_message(EMAIL_FROM, EMAIL_TO, "Google Calendar API - Data error", message)
     service = auth()
-    send_message(service=service, user_id='me', message=msg)
+    send_message(service=service, user_id="me", message=msg)
+
+if __name__ == "__main__":
+    notify('test')
+
