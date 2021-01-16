@@ -15,8 +15,10 @@ Uses a default color for events, and color codes them if:
 
 
 **Instructions**
+0. pip install -r requirements.txt
 1. Enable Google Calendar API (https://developers.google.com/calendar/quickstart/python) as a Desktop application.
 2. Rename appconfig.rename.py to appconfig.py
+
 In appconfig.py,
 3. Optionally create a calendar and get it's ID. If using main accounts calendar use "primary"
 4. Use the mapping to fill out the names in your csv file corresponding to supported Google Calendar fields.
