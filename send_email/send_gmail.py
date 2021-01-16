@@ -6,14 +6,10 @@ from googleapiclient.discovery import build
 from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
 import base64
-
-# from appconfig import EMAIL_TO, EMAIL_FROM
+from appconfig import EMAIL_FROM, EMAIL_TO
 
 # If modifying these scopes, delete the file token.pickle.
 SCOPES = ["https://mail.google.com/"]
-EMAIL_FROM = "jason.essebag@gmail.com"
-EMAIL_TO = "makip.ryden@gmail.com"
-
 
 def auth():
     """Shows basic usage of the Gmail API.
