@@ -7,14 +7,16 @@ from google.auth.transport.requests import Request
 from appconfig import FILEPATH, GOOGLE_CALENDAR_ID, DATE_FORMAT, COLUMN_MAPPING
 import csv
 import logging
+from send_email.send_gmail import notify
 
 # If modifying these scopes, delete the file token.pickle.
 SCOPES = ["https://www.googleapis.com/auth/calendar"]
 
 
 class FileSpec:
-    def __init__(self, summary, start_datetime_str, end_datetime_str, description, gid):
+    def __init__(self, summary, location, start_datetime_str, end_datetime_str, description, gid):
         self.summary = summary
+        self.location = location
         self.start_datetime_str = start_datetime_str
         self.end_datetime_str = end_datetime_str
         self.description = description
@@ -73,6 +75,7 @@ def read_file_events(column_mapping=COLUMN_MAPPING):
                 # get header indices.
                 try:
                     summary = row.index(column_mapping.get("summary"))
+                    location = row.index(column_mapping.get("location"))
                     start_datetime_str = row.index(
                         column_mapping.get("start_datetime_str")
                     )
@@ -87,6 +90,7 @@ def read_file_events(column_mapping=COLUMN_MAPPING):
             if id > 0:
                 file_event = FileSpec(
                     summary=row[summary],
+                    location=row[location],
                     start_datetime_str=row[start_datetime_str],
                     end_datetime_str=row[end_datetime_str],
                     description=row[description],
@@ -104,8 +108,11 @@ def validate_file_events(file_events):
     for s in file_events:
         if s.start_datetime_str == "" and s.end_datetime_str == "":
             logging.error(f"{s.gid} : Both start and end dates are empty.")
+            #notify('test')
+
         elif s.gid == "":
             logging.error(f"No gid found for event. Check source file.")
+            #notify('test')
 
         else:
             valid_file_events.append(s)
@@ -194,7 +201,7 @@ def get_event_body(event):
         "id": event.id,
         # "summary": f"{s.summary} ({s.gid})",
         "summary": event.summary,
-        "location": event.gid,
+        "location": event.location,
         "description": event.description,
         "start": {
             "dateTime": f"{event.start_date_str}T{event.start_time_str}:00",

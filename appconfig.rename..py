@@ -6,10 +6,13 @@ DATE_FORMAT = "%Y-%m-%d %H:%M:%S"
 EMAIL_FROM = "FROM"
 EMAIL_TO = "TO"
 
-COLUMN_MAPPING = {
-    "summary": "u_customer_concerned",
-    "start_datetime_str": "start_date",
-    "end_datetime_str": "end_date",
-    "description": "short_description",
-    "gid": "number",
+# used from snowsoftware extract.
+# replace with your own file
+COLUMN_MAPPING  = {
+    'summary': 'u_customer_concerned'
+    ,'location': 'number'
+    ,'start_datetime_str': 'start_date'
+    ,'end_datetime_str': 'end_date'
+    ,'description': 'short_description'
+    ,'gid': 'number'
 }
