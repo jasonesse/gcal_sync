@@ -4,13 +4,10 @@ import os.path
 from googleapiclient.discovery import build
 from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
-from appconfig import FILEPATH, GOOGLE_CALENDAR_ID, DATE_FORMAT, COLUMN_MAPPING
 import csv
 import logging
-from send_email.send_gmail import notify
-
-# If modifying these scopes, delete the file token.pickle.
-SCOPES = ["https://www.googleapis.com/auth/calendar"]
+from sync.notification.send_gmail import notify
+from sync.appconfig import FILEPATH, GOOGLE_CALENDAR_ID, DATE_FORMAT, COLUMN_MAPPING
 
 
 class FileSpec:
@@ -104,26 +101,33 @@ def read_file_events(column_mapping=COLUMN_MAPPING):
 def validate_file_events(file_events):
 
     valid_file_events = []
+    error_msgs = []
 
     for s in file_events:
         if s.start_datetime_str == "" and s.end_datetime_str == "":
-            logging.error(f"{s.gid} : Both start and end dates are empty.")
-            #notify('test')
-
+            err_msg = f"{s.gid} : Both start and end dates are empty."
+            logging.error(err_msg)
+            error_msgs.append(err_msg)
         elif s.gid == "":
-            logging.error(f"No gid found for event. Check source file.")
-            #notify('test')
-
+            err_msg = f"No gid found for event. Check source file."
+            logging.error(err_msg)
+            error_msgs.append(err_msg)
         else:
             valid_file_events.append(s)
 
+    if len(error_msgs) > 0:
+        msg = "Sync Errors:\n" + "\n".join(error_msgs)
+        notify(msg)
+
+
     return valid_file_events
 
-
-def authenticate_google():
+def auth():
     """Shows basic usage of the Google Calendar API.
     Prints the start and name of the next 10 events on the user's calendar.
     """
+    os.chdir(os.path.dirname(os.path.abspath( __file__ )))
+
     creds = None
     # The file token.pickle stores the user's access and refresh tokens, and is
     # created automatically when the authorization flow completes for the first
@@ -136,7 +140,7 @@ def authenticate_google():
         if creds and creds.expired and creds.refresh_token:
             creds.refresh(Request())
         else:
-            flow = InstalledAppFlow.from_client_secrets_file("credentials.json", SCOPES)
+            flow = InstalledAppFlow.from_client_secrets_file("credentials.json", ["https://www.googleapis.com/auth/calendar"])
             creds = flow.run_local_server(port=0)
         # Save the credentials for the next run
         with open("token.pickle", "wb") as token:
@@ -148,7 +152,7 @@ def authenticate_google():
 def get_google_cal_events(
     maxResults=100, timeMin=datetime.datetime.utcnow().isoformat() + "Z"
 ):
-    service = authenticate_google()
+    service = auth()
 
     events_result = (
         service.events()
@@ -218,7 +222,7 @@ def get_event_body(event):
 def process_events(file_events):
 
     if len(file_events) > 0:
-        service = authenticate_google()
+        service = auth()
         ids_to_update, ids_to_create, gcal_nin_file = calc_google_merge(file_events)
 
         for event in file_events:
@@ -261,6 +265,7 @@ def flag_event(id, service):
 
     event = service.events().get(calendarId=GOOGLE_CALENDAR_ID, eventId=id).execute()
     event["colorId"] = "11"  # red
+    event['description'] = event['description'].replace('**event not in source file**\n', '')
     event["description"] = f"**event not in source file**\n {event['description']}"
     service.events().update(
         calendarId=GOOGLE_CALENDAR_ID, eventId=event["id"], body=event
@@ -302,7 +307,7 @@ def handle_missing_dates(s):
     return s
 
 
-def synch_event():
+def synch_calendar():
     process_events(read_file_events())
 
 
@@ -317,4 +322,4 @@ def synch_event():
 
 if __name__ == "__main__":
     # get_colors()
-    synch_event()
+    synch_calendar()

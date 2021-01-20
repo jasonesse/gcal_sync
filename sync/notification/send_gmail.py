@@ -6,12 +6,18 @@ from googleapiclient.discovery import build
 from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
 import base64
-from appconfig import EMAIL_FROM, EMAIL_TO
-
+import logging
+from sync.appconfig import EMAIL_FROM, EMAIL_TO
 # If modifying these scopes, delete the file token.pickle.
-SCOPES = ["https://mail.google.com/"]
+
+logging_format = "%(asctime)s (%(levelname)s): %(message)s"
+logging.basicConfig(level=logging.INFO, format=logging_format)
+ 
 
 def auth():
+
+    os.chdir(os.path.dirname(os.path.abspath( __file__ )))
+
     """Shows basic usage of the Gmail API.
     Lists the user's Gmail labels.
     """
@@ -27,7 +33,7 @@ def auth():
         if creds and creds.expired and creds.refresh_token:
             creds.refresh(Request())
         else:
-            flow = InstalledAppFlow.from_client_secrets_file("credentials.json", SCOPES)
+            flow = InstalledAppFlow.from_client_secrets_file("credentials.json", ["https://mail.google.com/"])
             creds = flow.run_local_server(port=0)
         # Save the credentials for the next run
         with open("token.pickle", "wb") as token:
@@ -61,9 +67,7 @@ def send_message(service, user_id, message):
     Returns:
     Sent Message.
     """
-    # try:
-    message = service.users().messages().send(userId=user_id, body=message).execute()
-    return message
+    service.users().messages().send(userId=user_id, body=message).execute()
 
 
 def create_message(sender, to, subject, message_text):
