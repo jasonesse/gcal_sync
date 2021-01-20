@@ -1,10 +1,11 @@
-import datetime
+from datetime import datetime as dt, timedelta
 import pickle
 import os.path
 from googleapiclient.discovery import build
 from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
 import csv
+import time
 import logging
 from sync.notification.send_gmail import notify
 from sync.appconfig import FILEPATH, GOOGLE_CALENDAR_ID, DATE_FORMAT, COLUMN_MAPPING
@@ -60,9 +61,36 @@ class FileSpec:
         return f"summary:{self.summary},gid:{self.gid},StartDate:{self.start_datetime_str},EndDate:{self.end_datetime_str}"
 
 
+def get_file_date_metadata():
+    file_modified_date = dt.strptime( time.ctime(os.path.getmtime(FILEPATH)), "%a %b %d %H:%M:%S %Y")
+
+    sync_dt = "1900-01-01 00:00:00"
+    if os.path.exists("sync.log"):
+        with open("sync.log", "r") as log:
+            last_sync = log.read()
+            sync_dt = last_sync or sync_dt #if empty file take sync_dt
+    last_sync_date = dt.strptime(sync_dt, "%Y-%m-%d %H:%M:%S")
+
+    if last_sync_date > dt.now():
+        notify(f'Check the sync/calendar/sync.log file; the date should be in the past. No events will be processed until {last_sync_date}')
+
+    return file_modified_date, last_sync_date 
+
 def read_file_events(column_mapping=COLUMN_MAPPING):
 
     file_events = []
+
+    #does file exist?
+    os.chdir(os.path.dirname(os.path.abspath( __file__ )))
+    file_exists = os.path.exists(FILEPATH)
+
+    if not file_exists:
+        return file_events
+
+    file_modified_date, last_sync_date  = get_file_date_metadata()
+    
+    if file_modified_date <= last_sync_date:
+        return file_events
 
     with open(FILEPATH, "r", encoding="UTF-8") as f:
         reader = csv.reader(f, delimiter=",", quotechar='"')
@@ -150,7 +178,7 @@ def auth():
 
 
 def get_google_cal_events(
-    maxResults=100, timeMin=datetime.datetime.utcnow().isoformat() + "Z"
+    maxResults=100, timeMin=dt.utcnow().isoformat() + "Z"
 ):
     service = auth()
 
@@ -221,23 +249,22 @@ def get_event_body(event):
 
 def process_events(file_events):
 
-    if len(file_events) > 0:
-        service = auth()
-        ids_to_update, ids_to_create, gcal_nin_file = calc_google_merge(file_events)
+    if len(file_events) <= 0:
+        return
+    
+    service = auth()
+    ids_to_update, ids_to_create, gcal_nin_file = calc_google_merge(file_events)
 
-        for event in file_events:
-            event = handle_missing_dates(event)
+    for event in file_events:
+        event = handle_missing_dates(event)
 
-            if event.id in ids_to_update:
-                update_event(event, service)
-            if event.id in ids_to_create:
-                insert_event(event, service)
+        if event.id in ids_to_update:
+            update_event(event, service)
+        if event.id in ids_to_create:
+            insert_event(event, service)
 
-        for gcal_id in gcal_nin_file:
-            flag_event(gcal_id, service)
-    else:
-        logging.error("No work done, file is empty.")
-
+    for gcal_id in gcal_nin_file:
+        flag_event(gcal_id, service)
 
 def insert_event(s, service):
 
@@ -275,7 +302,7 @@ def flag_event(id, service):
 def get_min_start_date(file_events):
 
     start_dates = [
-        datetime.datetime.strptime(s.start_datetime_str, DATE_FORMAT)
+        dt.strptime(s.start_datetime_str, DATE_FORMAT)
         for s in file_events
         if s.start_date_str != ""
     ]
@@ -283,13 +310,13 @@ def get_min_start_date(file_events):
     try:
         min_start_date = min(start_dates)
     except:
-        min_start_date = datetime.datetime.now()
+        min_start_date = dt.now()
     return min_start_date
 
 
 def calc_missing_date_str(dt_str: str, hours: int, fmt=DATE_FORMAT) -> str:
-    dt = datetime.datetime.strptime(dt_str, fmt)
-    return datetime.datetime.strftime(dt + datetime.timedelta(hours=hours), DATE_FORMAT)
+    date = dt.strptime(dt_str, fmt)
+    return dt.strftime(date + timedelta(hours=hours), DATE_FORMAT)
 
 
 def handle_missing_dates(s):
@@ -306,9 +333,18 @@ def handle_missing_dates(s):
         s.description = "**end date missing**\n" + s.description
     return s
 
+def log_file_date():
+    os.chdir(os.path.dirname(os.path.abspath( __file__ )))
+    file_modified_date = dt.strptime( time.ctime(os.path.getmtime(FILEPATH)), "%a %b %d %H:%M:%S %Y")
+    
+    with open("sync.log", "w") as log:
+        log.write(dt.strftime(file_modified_date, "%Y-%m-%d %H:%M:%S"))
 
 def synch_calendar():
-    process_events(read_file_events())
+    events = read_file_events()
+    if events:
+        process_events(events)
+        log_file_date()
 
 
 # def get_colors():
