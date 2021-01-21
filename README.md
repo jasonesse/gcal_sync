@@ -28,7 +28,9 @@ The notification is powered by Google Gmail API.
 
 1. Install dependencies with `pip install -r requirements.txt`
 2. Rename appconfig.rename.py to appconfig.py
-3. Enable Google Calendar API (https://developers.google.com/calendar/quickstart/python) as a Desktop application.
+3. Enable Google Calendar API (https://developers.google.com/calendar/quickstart/python) as a Desktop application. Place credentials.json in calendar folder.
+4. Enable Google Calendar API (https://developers.google.com/gmail/api/quickstart/python) as a Desktop application. Place credentials.json in notification folder.
+
 
 *In appconfig.py,*
 
