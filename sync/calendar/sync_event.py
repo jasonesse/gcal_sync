@@ -294,9 +294,8 @@ def flag_event(id, service):
     event["colorId"] = "11"  # red
     event['description'] = event['description'].replace('**event not in source file**\n', '')
     event["description"] = f"**event not in source file**\n {event['description']}"
-    service.events().update(
-        calendarId=GOOGLE_CALENDAR_ID, eventId=event["id"], body=event
-    ).execute()
+    event["summary"] = '*' + event["summary"]
+    service.events().update(calendarId=GOOGLE_CALENDAR_ID, eventId=event["id"], body=event).execute()
 
 
 def get_min_start_date(file_events):
@@ -326,11 +325,13 @@ def handle_missing_dates(s):
         )
         s.colorId = "6"
         s.description = "**start date missing**\n" + s.description
+        s.summary = '*' + s.summary
 
     if s.end_datetime_str == "":
         s.end_datetime_str = calc_missing_date_str(dt_str=s.start_datetime_str, hours=1)
         s.colorId = "6"
         s.description = "**end date missing**\n" + s.description
+        s.summary = '*' + s.summary
     return s
 
 def log_file_date():
