@@ -1,4 +1,6 @@
-**Utility to push csv data to Google Calendar via its API.**
+# gcal_sync
+
+## Utility to push csv data to Google Calendar via its API
 
 Syncs the following Google Calendar fields:
 
@@ -13,15 +15,22 @@ Uses a default color for events, and color codes them if:
 * event is no longer in the file
 * event's start date or end date missing
 
+## Decisions
 
-**Instructions**
+If the start date is missing, or the end date is missing, the event will be one hour long relative to the one that's there.
 
-0. pip install -r requirements.txt
-1. Enable Google Calendar API (https://developers.google.com/calendar/quickstart/python) as a Desktop application.
+If there is no id defined in the column mappings, or both dates are missing, **an e-mail notification** will be 
+sent with the list of offending events.
+
+The notification is powered by Google Gmail API.
+
+## Instructions
+
+1. Install dependencies with `pip install -r requirements.txt`
 2. Rename appconfig.rename.py to appconfig.py
+3. Enable Google Calendar API (https://developers.google.com/calendar/quickstart/python) as a Desktop application.
 
-In appconfig.py,
+*In appconfig.py,*
+
 3. Optionally create a calendar and get it's ID. If using main accounts calendar use "primary"
 4. Use the mapping to fill out the names in your csv file corresponding to supported Google Calendar fields.
-
-Email support coming soon.

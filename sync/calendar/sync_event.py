@@ -137,14 +137,14 @@ def validate_file_events(file_events):
             logging.error(err_msg)
             error_msgs.append(err_msg)
         elif s.gid == "":
-            err_msg = f"No gid found for event. Check source file."
+            err_msg = f"No {COLUMN_MAPPING.get('gid')} found for event. Check source file."
             logging.error(err_msg)
             error_msgs.append(err_msg)
         else:
             valid_file_events.append(s)
 
     if len(error_msgs) > 0:
-        msg = "Sync Errors:\n" + "\n".join(error_msgs)
+        msg = f"Sync Errors ({FILEPATH}):" + "\n" + "\n".join(error_msgs)
         notify(msg)
 
 
