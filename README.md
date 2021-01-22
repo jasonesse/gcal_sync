@@ -11,9 +11,6 @@ Syncs the following Google Calendar fields:
 * end
 * colorId
 
-Uses a default color for events, and color codes them if:
-* event is no longer in the file
-* event's start date or end date missing
 
 ## Decisions
 
@@ -23,6 +20,15 @@ If there is no id defined in the column mappings, or both dates are missing, **a
 sent with the list of offending events.
 
 The notification is powered by Google Gmail API.
+
+
+#### Event Colors
+Uses a default color* for events, and color codes them if:
+* event is no longer in the file
+* event's start date or end date missing
+
+
+*_Note: If the calendar is shared to another user, the colors do not propagate. Stars prefix the title in the case of an issue with the event._
 
 ## Instructions
 

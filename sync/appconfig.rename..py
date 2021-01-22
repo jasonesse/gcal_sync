@@ -1,13 +1,21 @@
-# rename file to appconfig.py
-FILEPATH = "PATHTOFILE/change_request.csv"
+#Calendar/Mail parameters
 GOOGLE_CALENDAR_ID = "YOURCALENDARID@group.calendar.google.com"
-# GOOGLE_CALENDAR_ID = "primary"
-DATE_FORMAT = "%Y-%m-%d %H:%M:%S"
+#GOOGLE_CALENDAR_ID = "primary"
 EMAIL_FROM = "FROM"
 EMAIL_TO = "TO"
+TIMEZONE = "America/New_York"
+
+
+#File parameters
+FILEPATH = "PATHTOFILE/change_request.csv"
+COLUMN_DELIMETER = ','
+TEXT_SEPARATOR = '"'
+DATE_FORMAT= "%Y-%m-%d %H:%M:%S"
+
 
 # used from snowsoftware extract.
 # replace with your own file
+# 'Google Calendar column' : 'Your column'
 COLUMN_MAPPING  = {
     'summary': 'u_customer_concerned'
     ,'location': 'number'

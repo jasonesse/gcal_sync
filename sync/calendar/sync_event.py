@@ -8,7 +8,7 @@ import csv
 import time
 import logging
 from sync.notification.send_gmail import notify
-from sync.appconfig import FILEPATH, GOOGLE_CALENDAR_ID, DATE_FORMAT, COLUMN_MAPPING
+from sync.appconfig import FILEPATH, GOOGLE_CALENDAR_ID, DATE_FORMAT, COLUMN_MAPPING, COLUMN_DELIMETER, TEXT_SEPARATOR, TIMEZONE
 
 
 class FileSpec:
@@ -93,7 +93,7 @@ def read_file_events(column_mapping=COLUMN_MAPPING):
         return file_events
 
     with open(FILEPATH, "r", encoding="UTF-8") as f:
-        reader = csv.reader(f, delimiter=",", quotechar='"')
+        reader = csv.reader(f, delimiter=COLUMN_DELIMETER, quotechar=TEXT_SEPARATOR)
 
         for id, row in enumerate(reader):
             if id == 0:
@@ -237,11 +237,11 @@ def get_event_body(event):
         "description": event.description,
         "start": {
             "dateTime": f"{event.start_date_str}T{event.start_time_str}:00",
-            "timeZone": "America/New_York",
+            "timeZone": TIMEZONE,
         },
         "end": {
             "dateTime": f"{event.end_date_str}T{event.end_time_str}:00",
-            "timeZone": "America/New_York",
+            "timeZone": TIMEZONE,
         },
         "colorId": event.colorId,
     }
@@ -249,7 +249,7 @@ def get_event_body(event):
 
 def process_events(file_events):
 
-    if len(file_events) <= 0:
+    if len(file_events) == 0:
         return
     
     service = auth()
