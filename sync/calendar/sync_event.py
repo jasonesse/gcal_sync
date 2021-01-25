@@ -99,7 +99,11 @@ def process_events(event_specs):
     service = authorize()
     ids_to_update, ids_to_create, gcal_nin_file = calc_google_merge(event_specs)
 
+    throttle_time = 2 if len(event_specs) > 10 else 0
+
     for event in event_specs:
+        time.sleep(throttle_time)
+        print(dt.now())
         event = handle_missing_dates(event)
 
         if event.id in ids_to_update:
@@ -143,6 +147,9 @@ def flag_event(id, service):
 
 
 def get_min_start_date(event_specs):
+
+    for s in event_specs:
+        print(s.start_date_str)
 
     start_dates = [
         dt.strptime(s.start_datetime_str, config.DATE_FORMAT)

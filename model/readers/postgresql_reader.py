@@ -1,5 +1,5 @@
-from model.readers.event_reader import EventReader
+from model.readers.mssql_reader import MssqlEventReader
 
-class PostgresqlEventReader(EventReader):
+#TODO test a different connex string, and that's it?
+class PostgresqlEventReader(MssqlEventReader):
     pass
-
