@@ -1,6 +1,6 @@
 # gcal_sync
 
-## Utility to push csv data to Google Calendar via its API
+## Push data to Google Calendar API via various sources
 
 Syncs the following Google Calendar fields:
 
