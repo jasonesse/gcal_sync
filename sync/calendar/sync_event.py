@@ -138,13 +138,16 @@ def update_event(s, service):
 
 def flag_event(id, service):
 
-    event = service.events().get(calendarId=config.GOOGLE_CALENDAR_ID, eventId=id).execute()
-    event["colorId"] = "11"  # red
-    event['description'] = event['description'].replace('**event not in source file**\n', '')
-    event["description"] = f"**event not in source file**\n {event['description']}"
-    event["summary"] = f"*{event['summary']}"
-    service.events().update(calendarId=config.GOOGLE_CALENDAR_ID, eventId=event["id"], body=event).execute()
+    try:
 
+        event = service.events().get(calendarId=config.GOOGLE_CALENDAR_ID, eventId=id).execute()
+        event["colorId"] = "11"  # red
+        event['description'] = event['description'].replace('**event not in source**\n', '')
+        event["description"] = f"**event not in source**\n {event['description']}"
+        event["summary"] = f"*{event['summary']}"
+        service.events().update(calendarId=config.GOOGLE_CALENDAR_ID, eventId=event["id"], body=event).execute()
+    except:
+        pass #TODO why description mssing
 
 def get_min_start_date(event_specs):
 

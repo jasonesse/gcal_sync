@@ -24,3 +24,7 @@ COLUMN_MAPPING  = {
     ,'description': 'short_description'
     ,'gid': 'number'
 }
+
+
+ICS_SYNCH_DAYS = 30
+ICS_DATA_FILENAME = 'outlook.ics'

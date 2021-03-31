@@ -134,3 +134,11 @@ appconfig.py
 .vscode
 token.pickle
 change_request*
+ICSOutlookExporter.csproj
+ICSOutlookExporter.sln
+bin
+obj
+Properties
+.vs
+import_ics.bat
+cdpq.ics

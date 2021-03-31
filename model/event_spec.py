@@ -9,7 +9,7 @@ class EventSpec:
         self.to_str_format = 'html'
 
         # default color
-        self.colorId = "5"
+        self.colorId = "10"
 
     @property
     def id(self):
